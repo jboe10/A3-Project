@@ -39,8 +39,10 @@ void skipBlanks();		// skips whitespace
 
 //new functions for ll parser 
 void clear(int x[]);		//clears an array
-void birther(stack<Nodes> & pstak, Nodes & x, Rule rule);
-void LLparser(stack<int> & int_stack, stack<Nodes> & node_stack); 
+void birther(stack<Nodes> & pstak, Nodes  x, Rule rule);
+void LLparser(stack<int> & int_stack, stack<Nodes> & node_stack);
+void PST(Nodes a);
+
 
 // GLOBALS
 const int LEXEME_SIZE = 100;	// determines size of lexeme
@@ -55,8 +57,10 @@ Token *CurrentToken;			// object that holds the current token being used
 Token *TokenList[1000];			// array of tokens, 1000 is more than plenty
 int tokenCount = 0;				// count of tokens for use in TokenList
 
+Nodes * root;					//root of tree
 Nodes * parentptr;				//points to current parent
 Nodes * childptr;				//points to leftmost child
+Nodes * holder;
 
 ifstream input_file;
 char fileName[100] = "source.txt";
@@ -431,6 +435,7 @@ int main()
 	clear(tempr);
 	ll_parser[5][ident] = 11;
 	ll_parser[5][t_int] = 11;
+	ll_parser[5][t_float] = 11;
 	ll_parser[5][t_string] = 11;
 	ll_parser[5][parens1] = 11;
 	//Ostmt RULES[12] kwdprint Elist paren2
@@ -662,7 +667,7 @@ int main()
 	tempr[0] = 46;
 
 	Ex1r.setRule(38, 44, 1, tempr);
-	Rules[37] = Ex1r;
+	Rules[38] = Ex1r;
 	clear(tempr);
 	ll_parser[12][eps] = 38;
 	
@@ -848,11 +853,13 @@ int main()
 
 	ll_parser[12][parens2] = 50; //Ex
 	ll_parser[12][comma] = 50; //Ex
+	ll_parser[12][semi] = 50;
 
 	ll_parser[13][plus] = 50; //Tx
 	ll_parser[13][minus] = 50; //Tx
 	ll_parser[13][parens2] = 50; //Tx
 	ll_parser[13][comma] = 50; //Tx
+	ll_parser[13][semi] = 50;
 
 	ll_parser[14][aster] = 50; //Pexpr
 	ll_parser[14][slash] = 50; //Pexpr
@@ -1187,10 +1194,11 @@ int main()
 		}
 
 		// add token to list (if necessary)
-		int_stack_temp.push(CurrentToken->mType);
-		if (CurrentToken->mTokName!= "error")
+		if (CurrentToken->mType!= error) {
+			
+			int_stack_temp.push(CurrentToken->mType);
 			TokenList[tokenCount++] = CurrentToken;
-
+		}
 	} while (nextChar != EOF);
 	if (lex_ret == 1)
 	{
@@ -1206,24 +1214,6 @@ DBG:	if (tokenCount > 0)
 			}
 		}
 
-	/**
-
-	// "pause" console to see results
-	printf("\nPress any key to exit.\n");
-	cin.ignore();
-
-	// close file
-	input_file.close();
-
-	// TODO: pass to parser here
-
-	// end parsing
-
-	// delete dynamic pointers in array
-	for (int i = 0; i < tokenCount; i++){
-		delete TokenList[i];
-	}
-	**/
 	//============================================================================================================================================
 	//=================================================BEGIN LL PARESER===========================================================================
 	//============================================================================================================================================
@@ -1246,21 +1236,7 @@ DBG:	if (tokenCount > 0)
 		LLparser(int_stack, node_stack); 
 	}
 	
-	
-
-
 	cout << "WE DID IT FAM" << endl;
-
-
-
-
-
-
-
-
-
-
-
 
 	system("PAUSE");
 	return 0;
@@ -1510,6 +1486,7 @@ int lex()
 				return 0;
 			}
 			CurrentToken->mTokName = "ident";
+			CurrentToken->mType = ident;
 			CurrentToken->mValue = lexeme;
 			printf("(:token %d ident :str \"%s\")\n", lineCount, lexeme);
 		}
@@ -1529,7 +1506,7 @@ int lex()
 			// ensure only digits/dots are added
 			if (charClass == DIGIT || lookup(nextChar) == dot)
 			{
-				if (nextChar == '.')			// floating point picked up
+				if (nextChar == '.')//'.'			// floating point picked up
 				{
 					if (float_point == false)	// determine if token is int or float
 					{
@@ -1537,7 +1514,8 @@ int lex()
 						addChar();
 						getChar();
 						float_point = true;
-						continue;				// floating point shouldn't be the end
+						continue;
+													// floating point shouldn't be the end
 					}
 					else						// look pal, you can't have two floating points
 					{
@@ -1546,6 +1524,7 @@ int lex()
 						errorString[1] = 0;
 						return 0;
 					}
+					
 				}
 				else
 				{
@@ -1603,6 +1582,9 @@ int lex()
 			// skip over comment
 			while (nextChar != '\n')
 				getChar();
+			CurrentToken->mValue = lexeme;
+			CurrentToken->mTokName = "comment";
+			printf("(:token %d string :str \"%s\")\n", lineCount, lexeme);
 			return 1;
 			break;
 
@@ -1798,6 +1780,7 @@ void peekNext()
 			peekClass = UNKNOWN;
 		}
 	}
+	else
 		peekClass = EOF; // already defined as -1	else
 
 }
@@ -1863,16 +1846,14 @@ void clear(int x[]){		//clears an array
 void LLparser(stack<int> & int_stack, stack<Nodes> & node_stack){ //takes input stack as argument 
 	//2 stacks one of NODES and one of tokens
 	
-	Nodes top_node;						//token on top of Node stack
-	Symbol node_sym;					//symbol associated with node on top of stack
+	Nodes top_node;//token on top of Node stack
+	Symbol node_sym;//symbol associated with node on top of stack
 	top_node = node_stack.top();
 	node_sym = list[top_node.sym_ID];
 
-	int top_int;				//int "aka" token on top of Node stack 
+	int top_int;//int "aka" token on top of Node stack 
 	top_int  = int_stack.top();
-
-	               //takes top_int and finds it in ll parser x
-	int ll_nont_cord;
+	int ll_nont_cord;//takes top_int and finds it in ll parser x
 
 	int iii;
 	iii = 0;
@@ -1902,14 +1883,13 @@ void LLparser(stack<int> & int_stack, stack<Nodes> & node_stack){ //takes input 
 	}
 	else if (ll_parser[ll_nont_cord][top_int] != error){ // I THNK THIS IS BACKAWRDS
 		//llparser returns appropriate rule
-		cout<<"rule used  " << ll_parser[ll_nont_cord][top_int] <<endl;
 		int returned = ll_parser[ll_nont_cord][top_int];
 		Rule rule_ret = Rules[returned];
+
 		//make children of x based of rule returned
 		//pops parent off stack but still has pointer pointing to it
 		//also pops children onto stack in reverse order
 		birther(node_stack, top_node , rule_ret);
-		//we still keep x connected to its children in this process
 	}
 	else {
 		 error;
@@ -1921,15 +1901,15 @@ void LLparser(stack<int> & int_stack, stack<Nodes> & node_stack){ //takes input 
 // it will use the parent node and the Rule to create children
 // and modify the stack, while keeping parent & child connected via ptrs
 //=======================================================================
-void birther(stack<Nodes> & pstak, Nodes & x, Rule rule) 
+void birther(stack<Nodes> & pstak, Nodes  x, Rule rule) 
 {
+	x.kid_count=0;
 	if(rule.rule_ID == 50){
 		pstak.pop();
 	}
 	else{
 
 		//first we have global pointer parentptr = & x
-		parentptr = &x;
 		//then we pop stack
 		pstak.pop();
 		//LOOP{
@@ -1943,7 +1923,7 @@ void birther(stack<Nodes> & pstak, Nodes & x, Rule rule)
 		{
 			//make a new node with proper symbol
 			//make a switch to make new varrs idk im stuck help pls
-			int sym_id;
+			int  sym_id;
 			sym_id=rule.rhs_sym_ID[j-1];
 		
 			//now we look for the correct sym id in our nodes
@@ -1951,17 +1931,29 @@ void birther(stack<Nodes> & pstak, Nodes & x, Rule rule)
 			for(int t = 0; t <100; t++){
 				if(nodel[t].sym_ID == sym_id){
 					childptr = &nodel[t];
-					break;
+
 				}
 			}
 			//then we point global pointer childptr to the (next) rightmost child  
 
 			//and point parents child point slot to it
-			x.kids[b] = childptr; // we need to pass by value here the values are getting reset
-			b++;	//next slot for next loop iter
+			// we need to pass by value here the values are getting reset
+			
+			//next slot for next loop iter
 			
 			//pop child onto stack
 			pstak.push(*childptr);
 		}
+		//parentptr= new Nodes;
 	}
+	//PST(*parentptr);
+
+}
+
+
+void PST(Nodes  a){
+	cout << "( " << a.sym_ID << " ) --> ";
+	for(int i = 0; i <a.kid_count; i++)	{
+		cout << "( " << a.kids[i]->sym_ID << " )";
+	}cout<< endl;
 }

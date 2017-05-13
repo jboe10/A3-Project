@@ -1,0 +1,7 @@
+prog { // fuu
+	
+	print( "ASCII:", 
+		   " A= ", 65,
+		   " Z= ", 90
+		 );
+}

@@ -18,7 +18,12 @@
 class Symbol;
 class Nodes {
 public:
-	
+	Nodes(Nodes *a, int asym_id, int akid_count) // new shit
+	{
+		kid_count = akid_count;
+		sym_ID = asym_id;
+		curr = a;
+	}
 	void setNode(int asym_ID, int akid_count);
 	int get_sym_ID();
 	int get_kid_count();
@@ -28,6 +33,7 @@ public:
 	int sym_ID;		//position of symbol in symbol array
 	Nodes *kids[10];	//pointer array that points to children
 	int kid_count;	//how many kids node has
+	Nodes *curr;
 };
 #endif 
 // implementation
